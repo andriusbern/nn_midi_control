@@ -1,1 +1,7 @@
 ml_midi/data/
+
+.vscode/
+env/
+.DS_Store
+notes.md
+tests/
