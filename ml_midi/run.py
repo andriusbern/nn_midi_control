@@ -70,6 +70,8 @@ class QtInterface(QtWidgets.QWidget):
             self.current_max = max(data)
             if self.current_max > config.THRESHOLD:
                 self.record_led.value, self.recording = True, True
+            self.update_console()
+        
 
     def record_sample(self):
         t0 = time.time()
@@ -141,6 +143,7 @@ class QtInterface(QtWidgets.QWidget):
 
     def change_dataset(self):
         self.dataset_name = str(self.dataset_name_box.text())
+        self.dataset = Dataset(self.dataset_name)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
@@ -185,6 +188,7 @@ class QtInterface(QtWidgets.QWidget):
         self.dataset_label.setText('Dataset name:')
         self.dataset_name_box = QtWidgets.QLineEdit()
         self.dataset_name_box.setText(self.dataset_name)
+        self.dataset_name_box.keyPressEvent
         self.dataset_name_box.textChanged.connect(self.change_dataset)
 
         self.parameter_table = QtWidgets.QTableWidget(0, 1)
@@ -200,7 +204,7 @@ class QtInterface(QtWidgets.QWidget):
         self.layout.addWidget(self.dataset_name_box, 3, 2, 1, 1)
         self.layout.addWidget(self.label_category, 4, 1, 1, 1)
         self.layout.addWidget(self.label_box, 4, 2, 1, 1)
-        self.layout.setColumnMinimumWidth(2, 50)
+        self.layout.setColumnMinimumWidth(2, 80)
 
         self.layout.addWidget(self.spectrogram_display, 6, 1, 1, 3)
         self.layout.addWidget(self.console, 6, 4, 1, 1)

@@ -29,70 +29,6 @@ class DataSample(object):
 
         return self
 
-    def visualize(self):
-        pass
-
-    def write(self, sample_size, write_image=False):
-        pass
-
-        # scipy.io.wavfile.write(self.wave)
-
-class DataIO(object):
-    def __init__(self):
-        # self.data_dir = config.DATA
-        # self.sample_nr = 0
-        # self.dataset = Dataset()
-        pass
-
-    @staticmethod
-    def write_wav(path, bytestring, nchannels=1):
-    
-        wavefile = wave.open(path, 'wb')
-        wavefile.setnchannels(nchannels)
-        wavefile.setsampwidth(2)
-        wavefile.setframerate(config.SAMPLE_RATE)
-        wavefile.writeframes(bytestring)
-
-    @staticmethod
-    def read_wav(self):
-        pass
-
-    @staticmethod
-    def read_image(self):
-        pass
-
-    @staticmethod
-    def write_image(self):
-        pass
-
-    @staticmethod
-    def write_image(self, image, dataset, label):
-        timestamp = datetime.datetime.now().strftime('%m-%d_%H:%M:%S')
-        image = Image.fromarray(image).convert('L')
-        directory = os.path.join(self.data_dir, dataset, label)
-        if not os.path.isdir(directory): os.makedirs(directory)
-        location = os.path.join(directory, timestamp) + '.png'
-        print('\n'+location)
-        image = image.transpose(Image.ROTATE_90)
-        image.save(location)
-
-    def write_wave(self, wave):
-        pass
-
-    def split_data(self):
-        """
-        Split into train/test sets
-        """
-
-    def one_hot_label(self, label, n_labels):
-        label = np.zeros([1, n_labels])
-        return label
-
-    def get_batch(self):
-        return 0, 0
-        
-    def preprocess(self):
-        pass
 
 class Dataset(object):
     """
@@ -109,7 +45,6 @@ class Dataset(object):
         self.current_sample_id = 0
         self.n_labels = len(np.unique(self.labels))
         self.IO = DataIO()
-        self.summary()
 
     def new_sample(self, wave, bytestring, label=None, save=False):
         """
@@ -183,3 +118,62 @@ class Dataset(object):
 
     def summary(self):
         print('Loaded {} dataset: \n  Samples: {}, categories: {}'.format(self.name, len(self.labels), self.n_labels))
+
+
+
+class DataIO(object):
+    def __init__(self):
+        # self.data_dir = config.DATA
+        # self.sample_nr = 0
+        # self.dataset = Dataset()
+        pass
+
+    @staticmethod
+    def write_wav(path, bytestring, nchannels=1):
+    
+        wavefile = wave.open(path, 'wb')
+        wavefile.setnchannels(nchannels)
+        wavefile.setsampwidth(2)
+        wavefile.setframerate(config.SAMPLE_RATE)
+        wavefile.writeframes(bytestring)
+
+    @staticmethod
+    def read_wav(self):
+        pass
+
+    @staticmethod
+    def read_image(self):
+        pass
+
+    @staticmethod
+    def write_image(self):
+        pass
+
+    @staticmethod
+    def write_image(self, image, dataset, label):
+        timestamp = datetime.datetime.now().strftime('%m-%d_%H:%M:%S')
+        image = Image.fromarray(image).convert('L')
+        directory = os.path.join(self.data_dir, dataset, label)
+        if not os.path.isdir(directory): os.makedirs(directory)
+        location = os.path.join(directory, timestamp) + '.png'
+        print('\n'+location)
+        image = image.transpose(Image.ROTATE_90)
+        image.save(location)
+
+    def write_wave(self, wave):
+        pass
+
+    def split_data(self):
+        """
+        Split into train/test sets
+        """
+
+    def one_hot_label(self, label, n_labels):
+        label = np.zeros([1, n_labels])
+        return label
+
+    def get_batch(self):
+        return 0, 0
+        
+    def preprocess(self):
+        pass
