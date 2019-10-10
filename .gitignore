@@ -5,3 +5,5 @@ env/
 .DS_Store
 notes.md
 tests/
+
+*.pyc
