@@ -3,6 +3,7 @@ import sys, random, os, time, shutil
 import numpy as np
 from ml_midi.processing import Dataset
 import ml_midi.config as config
+from QLed import QLed
 
 
 class DatasetView(QtWidgets.QWidget):
@@ -14,6 +15,7 @@ class DatasetView(QtWidgets.QWidget):
         self.dataset = None
         self.model = None
         self.setup()
+
     def new_dataset(self):
         text, okPressed = QtWidgets.QInputDialog.getText(self, "New dataset","Name:", QtWidgets.QLineEdit.Normal, "")
         if okPressed and text != '':
@@ -185,18 +187,49 @@ class DatasetView(QtWidgets.QWidget):
 
         self.setLayout(self.layout)
 
-class LabelTree(QtWidgets.QTreeView):
-    def __init__(self, labelconf):
+class LabelArray(QtWidgets.QTableWidget):
+    def __init__(self, dataset):
+        pass
+        # self.add
+
+    def new_label(self):
+        """
+        Create a new label object in the dataset
+
+        Call a dialog box for constructing an output
+
+        def call midi_create_action
+        """
         pass
 
-    def create_labels(self):
-        pass
-
-    def label_row(self):
-
-        type = None # midi / audio
+    def create_labels(self, dataset):
+        labels = dataset.labels
+        label.args
         
 
+    def row_from_label(self, label):
+        
+        led = QLed()
+        name = QtWidgets.QLabel().setText(label.name)
+        n_samples = QtWidgets.QLabel().setText(str(len(label.samples)))
+        output_type = OutputSelectionCombo()
+        args = QtWidgets.QLabel().setText(str(label.args.values()))
+        destroy = DestroyLabelButton()
+        row = [led, name, n_samples, output_type, args, destroy]
+
+    def add_row(self, row):
+        pass
+    
+    def remove_row(self, row):
+        pass
+    
+
+
+class DestroyLabelButton(QtWidgets.QPushButton):
+    pass
+
+class OutputSelectionCombo(QtWidgets.QPushButton):
+    pass
 
 
         
