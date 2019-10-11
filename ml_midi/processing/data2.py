@@ -8,39 +8,41 @@ import glob
 
 
 class DataSample(object):
-    def __init__(self, filename=None, wave=None, raw=None, label=None):
-        assert(filename is not None or wave is not None, 
-               'Must pass a either a wave array or a valid filename.')
+    def __init__(self, wave, raw=None, label=None):
 
-        if filename is None:
-            self.wave = wave
-            self.label = label
-        if wave is None:
-            self.wave, self.label = self.load_from_file(filename)
-
+        self.wave = wave
+        self.label = label
         self.raw = raw
         self.id = ''
         self.spectrogram = None
-        # self.spectrogram = self.create_spectrogram()
 
     def create_spectrogram(self):
         spec = self.spectrogram = ap.melspectrogram(self.wave)
         return spec
 
-    def from_wave(self, wave, label, dataset):
-        self.wave = wave
-        self.raw = None #!
-        self.spectrogram = None
-        self.label = label
-
-        return self
-
 class Category(object):
     def __init__(self):
         self.name = ''
+        self.samples = []
+        self.dir = None
         self.type = None
-        self.params = {}
+        self.function_args = {}
+        self.function = None
     
+    def from_config(self, config):
+        self.name = config['name']
+        self.type = config['type']
+        self.function_args = config['function_args']
+        self.function = Outputs
+        
+    def assign_output_function(self, ):
+        self.function = function
+        self.function_args = {}
+
+    def emit(self):
+        if self.function is not None:
+            self.function(**self.function_args)
+
     def to_dict(self):
 
         return 
@@ -50,10 +52,10 @@ class Dataset(object):
     """
     Construct either from a folder or a list of wav files + labels
     """
-    def __init__(self, name, existing=False):
+    def __init__(self, name, config=None, existing=False):
 
         self.name = name
-        self.labels, self.samples = [], []
+        self.labels = []
         self.hashmap, self.samples_per_label = {}, {}
 
         self.image_dir = os.path.join(config.DATA, 'images',name)
@@ -131,8 +133,6 @@ class Dataset(object):
             for wave in waves:
                 sample = self.new_sample(wave=wave, label=self.labels[i])
 
-
-
     def write_image_dataset(self):
         """
         Writes an image dataset of current samples,
@@ -196,13 +196,9 @@ class Dataset(object):
 
 class DataIO(object):
     def __init__(self):
-        # self.data_dir = config.DATA
-        # self.sample_nr = 0
-        # self.dataset = Dataset()
         pass
 
     def write_wav(self, path, bytestring, nchannels=1):
-    
         wavefile = wave.open(path, 'wb')
         wavefile.setnchannels(nchannels)
         wavefile.setsampwidth(2)
@@ -228,10 +224,6 @@ class DataIO(object):
 
         return waves
 
-    @staticmethod
-    def read_image(self):
-        pass
-
     def write_grayscale(self, path, image):
         image = Image.fromarray(image).convert('L')
         image = image.transpose(Image.ROTATE_90)
@@ -248,9 +240,6 @@ class DataIO(object):
         print('\n'+location)
         image = image.transpose(Image.ROTATE_90)
         image.save(location)
-
-    def write_wave(self, wave):
-        pass
 
     def one_hot_label(self, label, n_labels):
         label = np.zeros([1, n_labels])

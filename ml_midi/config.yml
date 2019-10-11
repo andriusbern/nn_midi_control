@@ -1,0 +1,51 @@
+# Project config
+
+audio:
+  device_index: 0
+  channels: 1
+
+midi:
+  output: 0
+
+recording:
+  sample_rate: 44100
+  recording_sample_length: 4096 # 16384 #8192 # 2048 # 4096
+  threshold: 100
+  detection_sample_length: 128
+
+spectrogram:
+  low: 20
+  high: 20000
+  length: 100
+  fft_bands: 100
+  fft_length: 2048
+  normalize: False
+
+labels:
+  label0:
+    name: tap
+    type: midi
+    msg: note_on
+    note: 0
+    velocity: 0
+  label1:
+    name: snap
+    type: midi
+    msg: note_on
+    note: 10
+    velocity: 0
+
+network:
+  type: convolutional
+  filters:
+    - 16
+    - 16
+  kernel_size:
+    - 3
+    - 3
+  strides:
+    - 1
+    - 1
+  fc:
+    - 64
+    - 32

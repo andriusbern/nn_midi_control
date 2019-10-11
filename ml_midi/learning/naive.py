@@ -6,3 +6,5 @@ class RetardedClassifier(object):
 
     def classify(self, input):
         return np.random.randint(0,self.n_classes)
+
+    

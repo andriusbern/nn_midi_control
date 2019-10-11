@@ -51,9 +51,12 @@ class AudioIO():
 
     def get_device_info(self):
         info = self.instance.get_host_api_info_by_index(0)
+        m = ''
         for i in range(info.get('deviceCount')):
             if (self.instance.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-                print("Input Device id ", i, " - ", self.instance.get_device_info_by_host_api_device_index(0, i).get('name'))
+                m += 'Input Device id: {}, {}\n'.format(i,self.instance.get_device_info_by_host_api_device_index(0, i).get('name'))
+                
+        return m
 
     def start_recording(self):
         self.input.start_stream()
