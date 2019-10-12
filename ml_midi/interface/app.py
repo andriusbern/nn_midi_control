@@ -50,7 +50,7 @@ class Window(QtWidgets.QMainWindow):
         main = QtInterface()
         self.setCentralWidget(main)
 
-        self.setGeometry(200, 200, 1400, 600)
+        self.setGeometry(200, 200, 2000, 600)
         self.show()
 
     def display_help(self):
@@ -97,6 +97,7 @@ class QtInterface(QtWidgets.QWidget):
 
     def set_data(self, table, parameters, name):
         # parameters = config.mod_config
+        table.insertColumn(table.columnCount())
         headers = []
         for n, key in enumerate(parameters.keys()):
             headers.append('{:23}'.format(key))
@@ -105,11 +106,44 @@ class QtInterface(QtWidgets.QWidget):
             table.insertRow(table.rowCount())
             table.setRowHeight(n, 10)
             table.setItem(n, 0, item)
+            i = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+            i.setSliderPosition(20)
+            if table == self.parameter_table:
+                i.valueChanged.connect(self.par_changed)
+            else:
+                i.valueChanged.connect(self.spec_changed)
+            
+            table.setCellWidget(n, 1, i)
 
         table.setColumnWidth(0, 100)
+        table.setColumnWidth(1, 200)
         
         table.setHorizontalHeaderLabels([name])
         table.setVerticalHeaderLabels(headers)
+
+    def par_changed(self, val):
+        try:
+            rows = sorted(set(index.row() for index in
+                        self.parameter_table.selectedIndexes()))[0]
+            
+            # index = self.parameter_table.selectionModel().selectedRows()[0]
+            obj = self.parameter_table.item(rows, 0)
+            print(obj)
+            obj.setText(str(int(obj.text())+val))
+        except:
+            pass
+
+    def spec_changed(self, val):
+        try:
+            rows = sorted(set(index.row() for index in
+                        self.spec_table.selectedIndexes()))[0]
+            
+            # index = self.parameter_table.selectionModel().selectedRows()[0]
+            obj = self.spec_table.item(rows, 0)
+            print(obj)
+            obj.setText(str(int(obj.text())+val))
+        except:
+            pass
 
     def table_changed(self, item):
         row = item.row()
@@ -136,7 +170,7 @@ class QtInterface(QtWidgets.QWidget):
     def setup(self):
         self.layout = QtWidgets.QGridLayout()
 
-        self.parameter_table = QtWidgets.QTableWidget(0, 1)
+        self.parameter_table = QtWidgets.QTableWidget(4, 1)
         self.set_data(self.parameter_table, config.recording_config, 'Recording')
         self.parameter_table.itemChanged.connect(self.table_changed)
 
@@ -149,6 +183,7 @@ class QtInterface(QtWidgets.QWidget):
         temp.addWidget(self.parameter_table, 1, 2, 1, 1)
         temp.addWidget(self.spec_table, 2, 2, 1, 1)
         temp.addWidget(self.model_view, 3, 2, 1, 1)
+        temp.setColumnMinimumWidth(2, 500)
         temp.setRowMinimumHeight(1, 80)
         temp.setRowMinimumHeight(3, 350)
         box.setLayout(temp)
