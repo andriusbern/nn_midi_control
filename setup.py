@@ -2,7 +2,7 @@ from setuptools import setup
 import time, os
 
 packages = [
-    'PyQt5', 
+    'PySide2', 
     'pyqtgraph', 
     'pyaudio',
     'python-rtmidi',

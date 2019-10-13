@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PySide2 import QtCore, QtWidgets, QtGui
 import sys, random, os, time
 import numpy as np
 from ml_midi.processing import Dataset

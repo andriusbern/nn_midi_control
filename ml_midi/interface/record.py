@@ -1,10 +1,10 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
-from QLed import QLed
-import pyqtgraph as pg
+# from QLed import QLed
+# import pyqtgraph as pg
 import sys, random, os, time
 import numpy as np
 from ml_midi.processing import AudioIO
 import ml_midi.config as config
+from PySide2 import QtWidgets, QtGui, QtCore
 
 class RecordView(QtWidgets.QWidget):
     def __init__(self, parent):
