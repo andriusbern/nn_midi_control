@@ -7,3 +7,4 @@ notes.md
 tests/
 
 *.pyc
+*/__pycache__/
