@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import librosa
 import math
-import ml_midi.config as config
+from ml_midi.config import ConfigManager as config
 
 
 def spectrogram_manual(wave, bins):
@@ -40,8 +40,8 @@ def mfcc(wave=None, spectrogram=None):
     return mfcc
 
 def melspectrogram(wave, normalize=False):
-    hop_length = config.RECORDING_LENGTH // (config.TIMESTEPS + 1)
-    config.melspectrogram['hop_length'] = hop_length
+    hop_length = len(wave) // (config.TIMESTEPS + 1)
+    # config.melspectrogram['hop_length'] = hop_length
     wave = wave.astype(np.float32)
     mel = librosa.feature.melspectrogram(
         y=wave,

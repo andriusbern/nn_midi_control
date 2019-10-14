@@ -20,7 +20,7 @@ TIMESTEPS = 100
 FFT_LENGTH = 2048
 NORMALIZE = False
 
-class ConfigManager(object):
+class ConfigManager():
 
     # Directories
     SRC_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -29,6 +29,7 @@ class ConfigManager(object):
     ICONS = os.path.join(MAIN_DIR, 'icons')
     AUDIO = os.path.join(DATA, 'audio')
     IMAGES = os.path.join(DATA, 'images')
+    MODELS = os.path.join(SRC_DIR, 'models')
 
     ############
     # Parameters
@@ -44,13 +45,20 @@ class ConfigManager(object):
     SPECTROGRAM_HIGH = 20000
     FREQUENCY_BANDS  = 100
     TIMESTEPS = 100
-    FFT_LENGTH = 2048
+    FFT_LENGTH = 1024
     NORMALIZE = False
+
+
+    audio_config = dict(
+        channels=1,
+        device_index=1,
+        chunk_size=128,
+        sample_rate=SAMPLE_RATE)
 
     # Value ranges
     ranges = dict(
         RECORDING_LENGTH = [2**x for x in range(6, 19)],
-        THRESHOLD = [x*100 for x in range(101)],
+        THRESHOLD = [x*10 for x in range(5001)],
         DETECTION_SAMPLE_SIZE = [2**x for x in range(4, 10)],
 
         # Spectrogram
@@ -101,7 +109,7 @@ class ConfigManager(object):
 
 audio_config = dict(
     channels=1,
-    device_index=1,
+    device_index=0,
     chunk_size=128,
     sample_rate=SAMPLE_RATE)
 

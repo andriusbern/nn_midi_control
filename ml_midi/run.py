@@ -1,4 +1,4 @@
-from ml_midi.interface import QtInterface, Window
+from ml_midi.interface import QtInterface, Window, App
 
 if __name__ == "__main__":
 

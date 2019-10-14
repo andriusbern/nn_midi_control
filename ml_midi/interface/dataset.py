@@ -75,8 +75,6 @@ class DatasetView(QtWidgets.QWidget):
     def delete_all_samples(self):
         pass
 
-
-
     def play_sample(self, item):
         sample_no, ext = item.data().split('.')
         if 'wav' in ext:

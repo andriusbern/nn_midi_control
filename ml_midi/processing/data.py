@@ -125,6 +125,7 @@ class Dataset(object):
         subdirs = [x[0] for x in os.walk(self.audio_dir)][1:]
         self.labels = [x.split('/')[-1] for x in subdirs]
         self.current_label = 'default'
+        self.hashmap = {}
 
         for i, subdir in enumerate(subdirs):
             waves = self.IO.read_wav_directory(subdir)
@@ -208,12 +209,18 @@ class DataIO(object):
         wavefile.setsampwidth(2)
         wavefile.setframerate(config.SAMPLE_RATE)
         wavefile.writeframes(bytestring)
+        
 
     def read_wav(self, path):
         """
         Returns a numpy array of the wav file
         """
-        fs, data = scipy.io.wavfile.read(path)
+        f = wave.open(path, 'rb')
+        data = f.readframes(4096)
+        print(f.getparams())
+        data = np.fromstring(data, dtype=np.int16)
+        # fs, data = scipy.io.wavfile.read(path)
+        # print(data)
         return data
 
     def read_wav_directory(self, dir_path):

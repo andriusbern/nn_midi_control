@@ -11,6 +11,7 @@ class DefaultAction(QtWidgets.QAction):
         self.set_icon()
         # self.setIconVisibleInMenu = True
         self.setIconVisibleInMenu(True)
+        self.assign_trigger()
         
     def set_icon(self, name=None):
         path = os.path.join(config.ICONS, self.name+'.svg')
@@ -18,11 +19,14 @@ class DefaultAction(QtWidgets.QAction):
         icon.addPixmap(QtGui.QPixmap(path))
     
         self.setIcon(icon)
+    
+    def assign_trigger(self):
+        pass
 
 class DefaultToggleAction(DefaultAction):
     def __init__(self, parent, name):
         super(DefaultToggleAction, self).__init__(parent=parent, name=name)
-        self.setCheckable = True
+        self.setCheckable(True)
     
 
 
@@ -57,3 +61,13 @@ class PlaySampleAction(DefaultToggleAction):
         # self.toggled.connect(self.par.play_sample)
         self.toggled.connect(self.par.play_sample)
         # self.toggled.connect(self.par.pause)
+
+class NewLabelAction(DefaultAction):
+    def __init__(self, parent, name='Label'):
+        super(NewLabelAction, self).__init__(parent=parent, name=name)
+
+        self.setShortcut('CTRL+N')
+        self.setStatusTip('New Label')
+        self.triggered.connect(self.par.new_label)
+
+# class SampleSelectionAction(DefaultAction):
