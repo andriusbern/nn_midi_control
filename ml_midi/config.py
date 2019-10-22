@@ -37,7 +37,7 @@ class ConfigManager():
     # Audio
     SAMPLE_RATE = 44100
     RECORDING_LENGTH = 4096 # 16384 #8192 # 2048 # 4096
-    THRESHOLD = 100
+    THRESHOLD = 5000
     DETECTION_SAMPLE_SIZE = 128
 
     # Spectrograms
@@ -50,8 +50,8 @@ class ConfigManager():
 
 
     audio_config = dict(
-        channels=1,
-        device_index=1,
+        channels=2,
+        device_index=0,
         chunk_size=128,
         sample_rate=SAMPLE_RATE)
 

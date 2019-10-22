@@ -19,23 +19,20 @@ class Window(QtWidgets.QMainWindow):
     def __init__(self):
         super(Window, self).__init__()
         self.setWindowTitle('Neural Midi Control')
-        self.dimensions = [800, 400, 1500, 350]
+        self.dimensions = [800, 400, 1500, 900]
         self.setGeometry(*self.dimensions)
         # qtmodern.styles.dark(self)
         
         self.setWindowIcon(QtGui.QIcon(os.path.join(config.ICONS, 'App.svg')))
-        # self.setIconSize(QtCore.QSize(80,60))
         self.setWindowIconText('NMC')
-        
-
-        self.w = None
+        self.settings = None
         
         self.midi = Midi()
-        # self.classifier = RetardedClassifier()
 
         exit_action = QtWidgets.QAction('Exit', self)
         exit_action.setShortcut('Ctrl+Q')
         exit_action.setStatusTip('Exit application')
+        exit_action.setIcon(QIcon(QPixmap(os.path.join(config.ICONS, 'Exit'))))
         exit_action.triggered.connect(self.close)
 
         help_action = QtWidgets.QAction('Haelp', self)
@@ -45,13 +42,14 @@ class Window(QtWidgets.QMainWindow):
 
         self.status_bar = self.statusBar()
         sa = SettingsAction(parent=self)
-        ma = MidiAction(parent=self)
-        self.ps = PlaySampleAction(parent=self)
-        self.nl = NewLabelAction(parent=self)
+        # ma = MidiAction(parent=self)
+        # self.ps = PlaySampleAction(parent=self)
+        # self.nl = NewLabelAction(parent=self)
         
         menu = self.menuBar()
         file = menu.addMenu('&File')
-        actions = [ma, sa, self.ps, self.nl, exit_action]
+        # actions = [ma, sa, self.ps, self.nl, exit_action]
+        actions = [sa, exit_action]
         file.addActions(actions)
         
         help_menu = menu.addMenu('&Help')
@@ -81,63 +79,41 @@ class Window(QtWidgets.QMainWindow):
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Information)
 
-        msg.setText("This is a message box")
-        msg.setInformativeText("This is additional information")
-        msg.setWindowTitle("MessageBox demo")
-        msg.setDetailedText("The details are as follows:")
+        msg.setText("SEND HELP")
+        msg.setWindowTitle("HELP ME")
+        msg.setDetailedText("Du gaideliai ultravioletinius zirnius kule.")
         msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         retval = msg.exec_()
 
     def settings_menu(self):
-        self.w = SettingsMenu(self.main_widget.sample_widget)
-        self.w.setGeometry(QtCore.QRect(1500, 600, 600, 400))
-        self.w.show()
-        self.w.raise_()
+        self.settings = SettingsMenu(self.main_widget.sample_widget)
+        self.settings.setGeometry(QtCore.QRect(1500, 600, 600, 400))
+        self.settings.show()
+        self.settings.raise_()
 
     def new_midi(self):
         print('midi')
 
 
-    def play_sample(self, status):
-        if status:
-            print('play')
-            sample = self.main_widget.sample_widget.current_sample
-            print(sample.wave)
-            # self.audio.playback(sample.wave)
+    # def play_sample(self, status):
+    #     if status:
+    #         print('play')
+    #         sample = self.main_widget.sample_widget.current_sample
+    #         print(sample.wave)
+    #         # self.audio.playback(sample.wave)
 
-        else:
-            print('pause')
-        
-    def new_sample(self):
-        """
-        Update the sample globally?
-        """
-
-    def play_all(self):
-        print('playall')
-
-    def pause(self):
-        print('pause')
-    
-    def stop(self):
-        print('stop')
+    #     else:
+    #         print('pause')
 
     def new_label(self):
         print('lab')
-
-    def record(self, status):
-        if status: print('Recording')
-        else: print('Recording Stopped')
-
-    def monitor(self, status):
-        if status: print('Mon')
-        else: print('Mon Stopped')
 
 
 class App(QtWidgets.QApplication):
     def __init__(self, *args):
         QtWidgets.QApplication.__init__(self, *args)
         qtmodern.styles.dark(self)
+        # self.setFont(QFont('', 8))
         self.window = Window()
         # self.connect(self, SIGNAL("lastWindowClosed()"), self.byebye )
         self.window.show()

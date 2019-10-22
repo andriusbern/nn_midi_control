@@ -1,11 +1,11 @@
 import numpy as np
 import time, datetime, os, sys
-import ml_midi.config as config
 import cv2, scipy, wave
 from PIL import Image
 import ml_midi.processing.process as ap
 import glob
 
+from ml_midi.config import ConfigManager as config
 
 class DataSample(object):
     def __init__(self, filename=None, wave=None, raw=None, label=None):
@@ -35,15 +35,20 @@ class DataSample(object):
 
         return self
 
-class Category(object):
-    def __init__(self):
+class Label(object):
+    def __init__(self, name, samples=[], params={}):
         self.name = ''
         self.type = None
-        self.params = {}
+        self.params = params
     
     def to_dict(self):
 
         return 
+
+class Output(object):
+    def __init__(self, type):
+        pass
+
 
 
 class Dataset(object):
@@ -53,22 +58,35 @@ class Dataset(object):
     def __init__(self, name, existing=False):
 
         self.name = name
-        self.labels, self.samples = [], []
+        self.IO = DataIO()
         self.hashmap, self.samples_per_label = {}, {}
+        self.labels = []
+        self.samples = []
+        self.current_sample_id = 0
 
         self.image_dir = os.path.join(config.DATA, 'images',name)
         self.audio_dir = os.path.join(config.DATA, 'audio', name)
 
-        self.current_sample_id = 0
-        self.current_label = 'default'
-
-        self.n_labels = len(np.unique(self.labels))
-        self.IO = DataIO()
-
         if existing:
             self.load_existing()
         else:
-            os.makedirs(self.audio_dir)
+            self.create_new()
+        print(self.samples_per_label)
+
+    def create_new(self, name):
+        self.name = name
+        self.labels, self.samples = ['default'], []
+        self.hashmap, self.samples_per_label = {}, {}
+
+        self.image_dir = os.path.join(config.IMAGES, name)
+        self.audio_dir = os.path.join(config.AUDIO, name)
+
+        self.current_label = 'default'
+        os.makedirs(os.path.join(self.audio_dir, 'default'))
+
+        self.current_sample_id = 0
+
+        self.n_labels = len(np.unique(self.labels))
 
     def get_sample(self, sample_no):
         try:
@@ -105,7 +123,7 @@ class Dataset(object):
 
         new_sample.id = sid = self.samples_per_label[label]
         self.samples.append(new_sample)
-        self.labels.append(label)
+        # self.labels.append(label)
 
         if save:
             folder = path = os.path.join(self.audio_dir, label)
@@ -123,15 +141,17 @@ class Dataset(object):
     def load_existing(self):
         
         subdirs = [x[0] for x in os.walk(self.audio_dir)][1:]
-        self.labels = [x.split('/')[-1] for x in subdirs]
         self.current_label = 'default'
-        self.hashmap = {}
+        self.hashmap, self.samples_per_label = {}, {}
+        self.labels = [x.split('/')[-1] for x in subdirs]
+        print(self.labels)
 
         for i, subdir in enumerate(subdirs):
+            print(self.labels[i])
             waves = self.IO.read_wav_directory(subdir)
             for wave in waves:
                 sample = self.new_sample(wave=wave, label=self.labels[i])
-
+        self.labels.sort()
 
 
     def write_image_dataset(self):

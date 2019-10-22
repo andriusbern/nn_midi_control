@@ -52,9 +52,14 @@ def melspectrogram(wave, normalize=False):
         fmax=config.SPECTROGRAM_HIGH,
         n_mels=config.FREQUENCY_BANDS)
 
+    # mel = np.clip(mel, 10, 255)
+    print(mel.max())
     decibels = librosa.power_to_db(mel)
-    if normalize: decibels = scale(decibels)
-
+    print(decibels.max())
+    decibels = np.clip(decibels, 0, 120)
+    # decibels = decibels/120 * decibels.max()
+    # if normalize: decibels = scale(decibels)
+    # decibels = scale(decibels)
     return decibels
     
 def scale(wave):
@@ -63,6 +68,9 @@ def scale(wave):
     """
     min_value = np.min(wave)
     scaled = (wave - min_value) / float((np.max(wave) - min_value))
+    print(scaled.max())
+    scaled = (scaled * 255).astype(np.int16)
+    print(scaled.max())
     return scaled
 
 def fft(wave):

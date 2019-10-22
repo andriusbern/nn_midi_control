@@ -34,6 +34,28 @@ class Midi(object):
             type, 
             note=b1,
             velocity=b2)
-        
+
         return message
+
+class MidiMessage(mido.Message):
+    def __init__(self, msg_type, byte1, byte2, port):
+        # mido.Message()
+
+        types = ['note_off', 'note_on', 'control_change', 'program_change']
+        self.type = msg_type
+        self.b1 = byte1
+        self.b2 = byte2
+        self.port = port
+
+    def send(self):
+
+        self.port.send(self)
+        if self.type == 'note_on':
+            off = mido.Message('note_off', note=message.note)
+            self.port.send(off)
+
+
+    def reconfigure(self, ):
+        pass
+
     
