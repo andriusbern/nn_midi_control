@@ -104,7 +104,7 @@ class AudioIO(object):
             self.current_chunk += 1
             if self.current_chunk >= self.n_chunks - 1:
                 self.current_chunk = 0
-                print(self.looping, self.playing_all)
+                # print(self.looping, self.playing_all)
                 if not self.looping:
                     self.playing = False
                     self.manage_buttons()

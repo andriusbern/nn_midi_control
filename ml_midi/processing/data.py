@@ -9,8 +9,8 @@ from ml_midi.config import ConfigManager as config
 
 class DataSample(object):
     def __init__(self, filename=None, wave=None, raw=None, label=None):
-        assert(filename is not None or wave is not None, 
-               'Must pass a either a wave array or a valid filename.')
+        # assert(filename is not None or wave is not None, 
+        #        'Must pass a either a wave array or a valid filename.')
 
         if filename is None:
             self.wave = wave
@@ -49,7 +49,27 @@ class Output(object):
     def __init__(self, type):
         pass
 
+class ImageDataset(object):
+    def __init__(self):
+        self.name = name
+        self.IO = DataIO()
+        self.image_dir = os.path.join(config.DATA, 'images',name)
+        self.audio_dir = os.path.join(config.DATA, 'audio', name)
 
+    def load_existing(self):
+        
+        subdirs = [x[0] for x in os.walk(self.image_dir)][1:]
+        self.current_label = 'default'
+        self.hashmap, self.samples_per_label = {}, {}
+        self.labels = [x.split('/')[-1] for x in subdirs]
+        print(self.labels)
+
+        for i, subdir in enumerate(subdirs):
+            print(self.labels[i])
+            waves = self.IO.read_image_directory(subdir)
+            for wave in waves:
+                sample = self.new_sample(wave=wave, label=self.labels[i])
+        self.labels.sort()
 
 class Dataset(object):
     """
@@ -160,17 +180,28 @@ class Dataset(object):
         Using the current config
         """
         # Save the conf file somehow
-        dataset_folder = path = os.path.join(self.audio_dir, label)
+        # for label in self.labels:
+        #     directory = os.path.join(self.image_dir, label)
+        #     if not os.path.isdir(directory):
+        #         os.makedirs(directory)
+        for label in self.hashmap.keys():
+            directory = os.path.join(self.image_dir, label)
+            print(directory)
+            for sample in self.hashmap[label]:
+                print(sample.id)
+                path = os.path.join(directory, str(sample.id)+'.png')
+                image = sample.create_spectrogram()
+                self.IO.write_grayscale(path=path, image=image)
 
-        for sample in self.samples:
+        # for sample in self.samples:
 
-            samples_folder = os.path.join(dataset_folder, sample.label)
-            if not os.path.isdir(samples_folder):
-                os.makedirs(samples_folder)
+        #     samples_folder = os.path.join(dataset_folder, sample.label)
+        #     if not os.path.isdir(samples_folder):
+        #         os.makedirs(samples_folder)
 
-            path = os.path.join(samples_folder, sample.id+'.png')
-            image = sample.create_spectrogram()
-            self.IO.write_grayscale(path=path, image=image)
+        #     path = os.path.join(samples_folder, sample.id+'.png')
+        #     image = sample.create_spectrogram()
+        #     self.IO.write_grayscale(path=path, image=image)
 
     def split_data(self):
         """
@@ -255,14 +286,23 @@ class DataIO(object):
 
         return waves
 
-    @staticmethod
-    def read_image(self):
-        pass
+    def read_image_directory(self, dir_path, ext):
+        files = glob.glob(dir_path+'*.{}'.format(ext))
+        images = []
+        for f in files:
+            filepath = os.path.join(dir_path, f)
+            images.append(self.read_image(path=filepath))
+        return images
+
+    def read_image(self, path,):
+        image = Image.open(path)
+        return image
 
     def write_grayscale(self, path, image):
+        image = np.flip(image, axis=0)
         image = Image.fromarray(image).convert('L')
-        image = image.transpose(Image.ROTATE_90)
-        print('Writing image sample to: {} \n'.format(location))
+        # image = image.transpose(Image.ROTATE_90)
+        print('Writing image sample to: {} \n'.format(path))
         image.save(path)
 
     @staticmethod

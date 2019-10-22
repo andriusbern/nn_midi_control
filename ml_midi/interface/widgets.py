@@ -236,7 +236,7 @@ class MainWidget(QWidget):
         self.output_view = OutputView(self)
         labels = self.dataset_view.labels
         n_samples = [x for x in range(len(labels))] #[self.dataset_view.samples_per_label[label] for label in labels]
-        self.output_view.create_labels(labels, n_samples)
+        self.output_view.create_labels(labels)
         self.scroll.setWidget(self.output_view)
         
 
@@ -589,13 +589,9 @@ class DatasetWidget(QGroupBox, Dataset):
     def set_layout(self):
         layout = QVBoxLayout()
         layout.addWidget(self.dataset_selection)
-        # layout.addSpacing(-25)
         layout.addWidget(self.label_selection)
-        # layout.addSpacing(-25)
         layout.addWidget(self.toolbar)
         layout.addWidget(self.file_browser)
-        # layout.addWidget(self.new_label_button)
-        # layout.addWidget(self.new_label_box)
         self.setLayout(layout)
 
     def change_dataset(self, path):
@@ -607,7 +603,6 @@ class DatasetWidget(QGroupBox, Dataset):
         self.par.statusBar().showMessage('Loaded dataset {}'.format(path))
         self.label_selection.setEnabled(True)
         self.label_selection.set_path(path)
-        # self.label_selection.selection.setCurrentIndex(0)
         label = self.label_selection.selection.itemText(0)
         self.change_label(label)
         print(self.summary())
@@ -648,7 +643,7 @@ class DatasetWidget(QGroupBox, Dataset):
         if ok_pressed and label != '':
             self.new_label(label)
             self.change_label(label)
-            self.label_selection.set_path(os.path.join(self.audio_dir, label))
+            # self.label_selection.set_path(os.path.join(self.audio_dir))
             self.label_selection.selection.setCurrentText(label)
             self.main_widget.output_view.new_label(label)
 
@@ -660,7 +655,7 @@ class DatasetWidget(QGroupBox, Dataset):
             self.dataset_selection.selection.setCurrentText(name)
 
     def del_dataset(self):
-        reply = DeleteMessage(self, self.name, 'dataset') .ask()
+        reply = DeleteMessage(self, self.name, 'dataset').ask()
         if reply == QtWidgets.QMessageBox.Yes:
             shutil.rmtree(self.audio_dir)
             self.dataset_selection.set_path(self.audio_dir)
@@ -977,9 +972,9 @@ class OutputView(QGroupBox, Midi):
         self.labels = []
         self.label_map = {}
 
-    def create_labels(self, labels, n_samples):
+    def create_labels(self, labels):
         for i, label in enumerate(labels):
-            lab = LabelGroup(self.par, label, self, n_samples[i])
+            lab = LabelGroup(self.par, label, self)
             self.labels.append(lab)
             self.label_map[label] = lab
             self.lay.addWidget(lab)
@@ -1058,7 +1053,7 @@ class LabelRow(QWidget):
 
 
 class LabelGroup(QWidget):
-    def __init__(self, parent, name, output_widget, n_samples):
+    def __init__(self, parent, name, output_widget, n_samples=0):
         super(LabelGroup, self).__init__(parent=parent)
 
         self.par = parent
