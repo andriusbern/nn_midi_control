@@ -11,7 +11,8 @@ packages = [
     'Pillow', 
     'opencv-python', 
     'librosa', 
-    'tensorflow']
+    'tensorflow',
+    'pyqt-led']
 
 setup(
     name='ml_midi',

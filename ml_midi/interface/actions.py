@@ -9,7 +9,6 @@ class DefaultAction(QtWidgets.QAction):
         self.name = name
         self.setText(self.name)
         self.set_icon()
-        # self.setIconVisibleInMenu = True
         self.setIconVisibleInMenu(True)
         self.assign_trigger()
         
@@ -28,8 +27,6 @@ class DefaultToggleAction(DefaultAction):
         super(DefaultToggleAction, self).__init__(parent=parent, name=name)
         self.setCheckable(True)
     
-
-
 class MidiAction(DefaultAction):
     def __init__(self, parent, name='Midi'):
         super(MidiAction, self).__init__(parent=parent, name=name)
@@ -70,4 +67,42 @@ class NewLabelAction(DefaultAction):
         self.setStatusTip('New Label')
         self.triggered.connect(self.par.new_label)
 
-# class SampleSelectionAction(DefaultAction):
+
+class ActionComboBox(QtWidgets.QComboBox):
+    def __init__(self, parent, actions):
+        super(ActionComboBox, self).__init__(parent=parent)
+
+        self.par = parent
+        self.action_list = actions
+
+        icon = QIcon(QPixmap(get_icon('Default')))
+        self.insertItem(0, icon, 'New output')
+        self.model().item(0).setEnabled(False)
+        self.setup(actions)
+
+        self.activated.connect(self.selection)
+
+    def setup(self, actions):
+        for i, action in enumerate(actions):
+            self.addItem(action.icon(), action.name)
+
+    def selection(self):
+        """
+        Trigger an action based on selection
+        """
+        self.currentIndex()
+        self.action_list[self.currentIndex()-1].trigger()
+        self.setCurrentIndex(0)
+
+class ActionButton(QtWidgets.QToolButton):
+    def __init__(self, parent, action, name):
+        super(ActionButton, self).__init__(parent=parent)
+
+        self.action = action
+        self.name = action.name
+        self.setText(self.name)
+        self.setIcon(action.icon())
+        self.setCheckable(True)
+        self.toggled.connect(print('nono'))
+        
+        self.setToolTip(name)

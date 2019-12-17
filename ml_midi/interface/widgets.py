@@ -2,12 +2,15 @@ from PySide2.QtWidgets import *
 from PySide2.QtGui import *
 from PySide2.QtCore import *
 
+import ml_midi, mido
 import pyqtgraph as pg
 from .actions import *
-from ml_midi.processing import Dataset, DataSample, AudioIO, Midi
+from ml_midi.processing import Dataset, DataSample, AudioIO, Midi, ImageDataset
+from ml_midi.learning import ConvNet, MLP
 import os, time, shutil
 import numpy as np
 from ml_midi.config import ConfigManager as config
+from ml_midi.config import mlp_config as netconf
 
 def get_icon(name):
     icon_path = os.path.join(config.ICONS, name+'.svg')
@@ -191,15 +194,15 @@ class MainWidget(QWidget):
         super(MainWidget, self).__init__(parent=parent)
         self.par = parent
         self.create_layout()
+        self.timer = QTimer()
 
     def create_layout(self):
         
         # Parameters
         self.parameter_widget = ParameterContainer('Parameters', self)
         self.sample_widget = SampleWidget('Sample Display', self, config.audio_config)
-        self.dataset_view = DatasetWidget(self.par, self)
-        self.model_view = ModelView(self.par, self)
-        self.output_view = OutputView(self)
+        self.dataset_view = AudioDatasetWidget(self.par, self)
+        self.model_view = ModelView(self, self)
         
 
         tabs = QTabWidget()
@@ -209,35 +212,34 @@ class MainWidget(QWidget):
         tabs.setTabText(1, 'Image Datasets')
 
         # Layout
-        self.scroll = QScrollArea()
-        self.scroll.setWidget(self.output_view)
-        self.scroll.setWidgetResizable(True)
-        # self.scroll.setSizeIncrement(100, 100)
-        # self.scroll.set
+
         layout = QGridLayout(self)
         layout.addWidget(tabs, 1, 1, 2, 1)
-        layout.addWidget(self.sample_widget, 1, 2, 3, 1)
+        layout.addWidget(self.sample_widget.container, 1, 2, 3, 1)
         layout.addWidget(self.parameter_widget, 1, 3, 1, 1)
-        layout.addWidget(self.scroll, 2, 3, 2, 1)
-        layout.addWidget(self.model_view, 3, 1, 1, 1)
+        layout.addWidget(self.model_view, 2, 3, 2, 1)
         layout.setColumnMinimumWidth(1, 500)
-        layout.setRowMinimumHeight(3, 300)
+        # layout.setRowMinimumHeight(3, 300)
 
     def global_sample(self, sample):
         self.sample_widget.new_sample(sample)
         self.sample_widget.recording_ready(True)
+        im = self.sample_widget.current_sample.create_spectrogram()
+        im = np.expand_dims(im, axis=0)
+        self.model_view.classify(im)
+    
 
     def label_selected(self, label):
         self.sample_widget.recording_ready(True)
-        self.output_view.set_active(label)
+        self.dataset_view.output_view.set_active(label)
 
-    def dataset_selected(self):
-        del self.output_view
-        self.output_view = OutputView(self)
-        labels = self.dataset_view.labels
-        n_samples = [x for x in range(len(labels))] #[self.dataset_view.samples_per_label[label] for label in labels]
-        self.output_view.create_labels(labels)
-        self.scroll.setWidget(self.output_view)
+    # def image_dataset_selected(self):
+    #     del self.output_view
+    #     self.output_view = OutputView(self)
+    #     labels = self.dataset_view.labels
+    #     n_samples = [x for x in range(len(labels))] #[self.dataset_view.samples_per_label[label] for label in labels]
+    #     self.output_view.create_labels(labels)
+    #     self.scroll.setWidget(self.output_view)
         
 
     def parameter_changed(self, parameter):
@@ -249,6 +251,7 @@ class MainWidget(QWidget):
             self.sample_widget.tline2.setValue(-config.THRESHOLD)
         else:
             self.sample_widget.display_update()
+
 
 
 class SampleWidget(QGroupBox, AudioIO):
@@ -265,7 +268,6 @@ class SampleWidget(QGroupBox, AudioIO):
         self.tracker.setRange(0, self.n_chunks)
 
         self.sample_display = pg.PlotWidget()
-        # self.sample_display.setYRange(-50000, 50000)
         
         self.line = pg.InfiniteLine(pen='g')
         self.sample_display.addItem(self.line)
@@ -299,7 +301,7 @@ class SampleWidget(QGroupBox, AudioIO):
         colormap = pg.ColorMap(steps, np.array([pg.colorTuple(pg.Color(c)) for c in colors]))
         self.image_view.setColorMap(colormap)
 
-        layout = QGridLayout()
+        layout = QGridLayout(self)
         layout.addWidget(self.sample_display, 1, 1, 1, 1)
         layout.addWidget(self.volumebar, 1, 2, 1, 1)
         layout.addWidget(self.buttons, 2, 1, 1, 2)
@@ -307,7 +309,8 @@ class SampleWidget(QGroupBox, AudioIO):
         layout.addWidget(self.image_view, 4, 1, 1, 2)
         layout.setRowMinimumHeight(4, 400)
         layout.setRowMinimumHeight(1, 140)
-        self.setLayout(layout)
+        self.container = QTabWidget()
+        self.container.addTab(self, 'Audio I/O')
 
     def update_spectrogram(self, image):
         image = np.flip(image.T)[::-1]
@@ -315,19 +318,23 @@ class SampleWidget(QGroupBox, AudioIO):
         self.image_view.setLevels(0, 100)
         # self.image_view.getHistogramWidget().setRange(0, 100)
         
-    
-        
-    def update_sample_display(self, data):
+    def update_sample_display(self, data, lims=True, clear=True, color='w'):
         # data = np.abs(data)
-        self.sample_display.getPlotItem().plot(clear=True).setData(data)
-        maxval = max([np.abs(data).max(), config.THRESHOLD])
-        self.sample_display.setYRange(-maxval, maxval)
-        self.sample_display.addItem(self.line)
-        self.sample_display.addItem(self.tline)
-        self.sample_display.addItem(self.tline2)
-        self.tline.setValue(config.THRESHOLD)
-        self.tline2.setValue(-config.THRESHOLD)
-        self.seek(0)
+
+        if lims:
+            maxval = max([np.abs(data).max(), config.THRESHOLD])
+            self.sample_display.setYRange(-maxval, maxval)
+            self.tline.setValue(config.THRESHOLD)
+            self.tline2.setValue(-config.THRESHOLD)
+            self.seek(0)
+        else:
+            self.sample_display.setYRange(0, 1)
+
+        self.sample_display.getPlotItem().plot(clear=clear, color=color).setData(data)
+        if clear:
+            self.sample_display.addItem(self.line)
+            self.sample_display.addItem(self.tline)
+            self.sample_display.addItem(self.tline2)
 
     def seek(self, value):
         self.current_chunk = value
@@ -346,7 +353,6 @@ class SampleWidget(QGroupBox, AudioIO):
             self.update_sample_display(self.current_sample.wave)
         else:
             self.update_sample_display(sample)
-        
 
     ### Looping methods
 
@@ -356,6 +362,7 @@ class SampleWidget(QGroupBox, AudioIO):
             self.monitoring = val
             self.timer.timeout.connect(self.monitor)
             self.timer.start(1)
+            self.buttons.classify_button.setEnabled(True)
 
         else:
             print('mon off')
@@ -407,10 +414,31 @@ class SampleWidget(QGroupBox, AudioIO):
 
         self.display_update()
 
-        y = 0
         self.time_taken = time.time() - t0
         print(self.time_taken)
-        
+
+    def start_classifying(self, val):
+        self.classifying = val
+
+    def classify(self):
+        t0 = time.time()
+        data = self.make_sample()
+        data = np.expand_dims(self.current_sample.create_spectrogram(), axis=0)
+        data = np.expand_dims(data, axis=3)
+        label = self.par.model_view.classify(data)
+        print(label)
+        self.time_taken = time.time() - t0
+        print(self.time_taken)
+
+    def make_sample(self):
+        data, raw = self.record(config.RECORDING_LENGTH)
+        self.current_sample = self.par.dataset_view.new_sample(
+            wave=data, 
+            bytestring=raw, 
+            save=False)
+        self.display_update()
+        return data
+
 
 class PlayToolbar(QGroupBox):
     def __init__(self, parent):
@@ -468,7 +496,7 @@ class PlayToolbar(QGroupBox):
         self.classify_button = ToggleButton(
             parent=self.par, 
             names=['Classify', 'Classify Stop', 'Classify Disabled'], 
-            trigger='start_monitoring',
+            trigger='start_classifying',
             status=['Classify New Recordings', 'Stop Classifying'])
         self.classify_button.setEnabled(False)
         
@@ -508,13 +536,13 @@ class DataToolbar(QGroupBox):
         self.new_label_button = ClickButton(
             parent=self.par, 
             name='New Label', 
-            triggers=['new_label_dialog'],
+            triggers=[self.par.new_label_dialog],
             status='New Label')
 
         self.del_label_button = ClickButton(
             parent=self.par, 
             name='Delete Label', 
-            triggers=['del_label'],
+            triggers=[self.par.del_label],
             status='Delete Label')
 
 
@@ -562,7 +590,7 @@ class ModelToolbar(QGroupBox):
         layout.addWidget(self.del_label_button)
         self.setLayout(layout)
 
-class DatasetWidget(QGroupBox, Dataset):
+class AudioDatasetWidget(QGroupBox, Dataset):
     def __init__(self, parent, main_widget):
         QGroupBox.__init__(self, parent=parent)
         Dataset.__init__(self, name='trash', existing=True)
@@ -574,25 +602,46 @@ class DatasetWidget(QGroupBox, Dataset):
         # self.new_label_button = ActionButton(self.par, self.par.nl, 'New Label')
         
         self.file_browser = FileBrowser(self.par, self)
+        self.output_browser = QWidget()
+        self.tabs = QTabWidget(self)
+        self.tabs.addTab(self.file_browser, 't1')
+        self.tabs.setTabText(0, 'Samples')
+        self.tabs.addTab(self.output_browser, 't2')
+        self.tabs.setTabText(1, 'Outputs')
+        
+
+        self.output_view = OutputView(self)
+        self.scroll = QScrollArea()
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll.setWidget(self.output_view)
+        self.scroll.setWidgetResizable(True)
         
         self.dataset_selection = DirectoryComboBox(self, config.AUDIO, 'Dataset:', 'NewDataset',['new_dataset', 'del_dataset'])
         self.dataset_selection.selection.activated[str].connect(self.change_dataset)
 
-        self.label_selection = DirectoryComboBox(self, config.AUDIO, 'Label:', 'Label', ['new_label_dialog','del_label'])
-        self.label_selection.selection.activated[str].connect(self.change_label)
-        self.label_selection.setEnabled(False)
+        self.create_img_dataset_button = ClickButton(
+            parent=self, 
+            name='Create Image Dataset', 
+            triggers=[self.create_images],
+            status='Create an image dataset based on current spectrogram parameters.')
 
         self.toolbar = DataToolbar(self)
 
         self.set_layout()
 
+    def create_images(self):
+        self.write_image_dataset()
+        self.main_widget.model_view.setEnabled(True)
+
+
     def set_layout(self):
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
         layout.addWidget(self.dataset_selection)
-        layout.addWidget(self.label_selection)
         layout.addWidget(self.toolbar)
-        layout.addWidget(self.file_browser)
-        self.setLayout(layout)
+        layout.addWidget(self.scroll)
+        self.scroll.setMinimumHeight(250)
+        layout.addWidget(self.tabs)
+        layout.addWidget(self.create_img_dataset_button)
 
     def change_dataset(self, path):
         self.name = path
@@ -601,24 +650,15 @@ class DatasetWidget(QGroupBox, Dataset):
         self.dataset_path = self.audio_dir = path
         self.load_existing()
         self.par.statusBar().showMessage('Loaded dataset {}'.format(path))
-        self.label_selection.setEnabled(True)
-        self.label_selection.set_path(path)
-        label = self.label_selection.selection.itemText(0)
-        self.change_label(label)
+        self.dataset_selected()
+        # self.change_label(label)
         print(self.summary())
-        self.main_widget.dataset_selected()
 
     def change_label(self, label):
         path = os.path.join(self.audio_dir, label)
         self.current_label = label
         self.file_browser.set_path(path)
         self.main_widget.label_selected(label)
-        # index = self.label_selection.selection.model().index(0,0)
-        # self.label_selection.selection.
-        # self.label_selection.selection.setCurrentText(label)
-        # self.label_selection.selection.setCurrentIndex(self.label_selection.selection.findData(label))
-        # self.file_browser.setCurrentIndex(-1)
-        # self.file_browser.DoubleClicked()
 
     def sample_selected(self, sample_no):
         sample = self.current_sample_id = self.get_sample(sample_no-1)
@@ -643,9 +683,7 @@ class DatasetWidget(QGroupBox, Dataset):
         if ok_pressed and label != '':
             self.new_label(label)
             self.change_label(label)
-            # self.label_selection.set_path(os.path.join(self.audio_dir))
-            self.label_selection.selection.setCurrentText(label)
-            self.main_widget.output_view.new_label(label)
+            self.output_view.new_label(label)
 
     def new_dataset(self):
         name, ok_pressed = NewDialog(self, 'dataset', '').ask()
@@ -667,7 +705,16 @@ class DatasetWidget(QGroupBox, Dataset):
             path = os.path.join(self.audio_dir, self.current_label)
             shutil.rmtree(path)
             self.file_browser.set_path(self.audio_dir)
-            self.main_widget.output_view.del_label(self.current_label)
+            self.output_view.del_label(self.current_label)
+
+    def dataset_selected(self):
+        del self.output_view
+        self.output_view = OutputView(self)
+        labels = self.labels
+        n_samples = [x for x in range(len(labels))] #[self.dataset_view.samples_per_label[label] for label in labels]
+        self.output_view.create_labels(labels)
+        self.scroll.setWidget(self.output_view)
+
 
 class FileBrowser(QTreeView):
     def __init__(self, parent, datawidget):
@@ -702,14 +749,6 @@ class FileBrowser(QTreeView):
             self.sample_no = sample_no
             self.data_widget.sample_selected(
                 sample_no=int(sample_no))
-
-        # self.label_selection.clear()
-        # self.label_selection.addItems(self.dataset.hashmap.keys())
-        # self.label_selection.setEnabled(True)
-        # self.create_label_button.setEnabled(True)
-
-    
-# class 
 
 class DirectoryComboBox(QWidget):
     def __init__(self, parent, directory, name, icon, triggers):
@@ -786,34 +825,106 @@ class SettingsMenu(QWidget):
         self.setWindowTitle('Settings Menu')
         _, list = audio_object.get_device_info()
         self.devices = LabeledComboBox(self, 'Audio devices: ', list)
-
+        self.midi = LabeledComboBox(self, 'Midi Devices', mido.get_output_names())
+        lay = QVBoxLayout(self)
+        lay.addWidget(self.devices)
+        lay.addWidget(self.midi)
 
 class ModelView(QGroupBox):
     def __init__(self, parent, main_widget):
         super(ModelView, self).__init__(parent=parent)
         self.par = parent
         self.main_widget = main_widget
-        self.setTitle('Models')
+        self.timer = QTimer()
+        self.test_acc = [0]
+        self.train_acc = [0]
+        self.setTitle('Neural Networks')
 
-        models = ['Retarded Classifier']
+        models = ['Multilayer Perceptron', 'Convolutional Neural Network']
         self.classifier_selection = LabeledComboBox(self, 'Select Classifier: ', models, 'Classifier')
-        
         self.model_selection = DirectoryComboBox(self, config.AUDIO, 'Select Model:', 'New Model',['new_model', 'del_model'])
         self.model_selection.set_path(config.MODELS)
 
-        # self.new_output = ActionComboBox(self.par, [MidiAction(parent=self.par)])
+        # audio = Dataset(netconf['dataset'], True)
+        # audio.write_image_dataset(1)
+        
+        self.model = None
+        
+        #MLP(netconf, self.imgdata)
+
+        self.new_model_button = ClickButton(
+            parent=self,
+            name='Create Neural Net',
+            triggers=[self.new_model],
+            status='Create a new neural network classifier.')
+
+        self.train_button = ClickButton(
+            parent=self,
+            name='Train Model',
+            triggers=[self.train],
+            status='Train Model')
+
+        self.stop_button = ClickButton(
+            parent=self, 
+            name='Stop Training', 
+            triggers=[self.stop_training],
+            status='Stop Training')
 
         layout = QVBoxLayout()
         layout.addWidget(self.classifier_selection)
         layout.addWidget(self.model_selection)
+        layout.addWidget(self.new_model_button)
+        layout.addWidget(self.train_button)
+        layout.addWidget(self.stop_button)
         self.setLayout(layout)
+        self.setEnabled(False)
 
     def new_model(self):
-        pass
+        mapping = {'Multilayer Perceptron': MLP, 'Convolutional Neural Network': ConvNet}
+        # try:
+        print('penis1')
+        name = self.main_widget.dataset_view.name
+        self.imgdata = ImageDataset(name)
+        netconf['dataset'] = name
+        self.model = mapping[self.classifier_selection.combo.currentText()](netconf, self.imgdata)
+        print('penis2')
+        # except Exception as e:
+            # print(e)
+
+    def train(self):
+        self.timer.timeout.connect(self.run_epoch)
+        self.timer.start(1)
+
+    def stop_training(self):
+        self.timer.stop()
+        self.timer = QTimer()
+        self.test_acc = [0]
+        self.train_acc = [0]
+
+    def run_epoch(self):
+        _, acc, te_acc = self.model.train(netconf['batch_size'])
+        self.train_acc.append(acc)
+        self.test_acc.append(te_acc)
+        self.par.sample_widget.tline.setValue(0)
+        self.par.sample_widget.tline2.setValue(1)
+        self.par.sample_widget.update_sample_display(self.train_acc, lims=False, color='r')
+        self.par.sample_widget.update_sample_display(self.test_acc, lims=False, clear=False, color='g')
 
     def del_model(self):
         pass
 
+    def classify(self, image):
+        one_hot = self.model.classify(image)
+        print(one_hot)
+        label = np.argmax(one_hot)
+        print(image.shape, self.par.dataset_view.hashmap['s'][0].create_spectrogram().shape)
+        stacked = np.hstack([image.squeeze(), 
+                             self.par.dataset_view.hashmap['s'][0].create_spectrogram(),
+                             self.par.model_view.imgdata.samples[0]])
+        print('Label: {}'.format(one_hot))
+        print('Actual label: {}'.format(self.model.dataset.reverse_mapping[label]))
+        self.par.dataset_view.output_view.trigger(label)
+        return label
 
 class DeleteMessage(QMessageBox):
     def __init__(self, parent, name, objectname):
@@ -887,6 +998,7 @@ class VolumeWidget(QGroupBox):
         self.par.volume = val
 
     def mute(self, val):
+        
         if val:
             self.prev_vol = self.par.volume
             self.par.volume = 0
@@ -904,14 +1016,20 @@ class NewOutputWidget(QComboBox):
 
         self.par = parent
         # self.action_list = actions
-        self.options = ['Midi', 'Audio']
+        self.options = ['Midi', 'Audio', 'Shell']
 
         icon = QIcon(QPixmap(get_icon('Default')))
         self.insertItem(0, icon, 'New output')
         self.model().item(0).setEnabled(False)
 
-        self.activated.connect(self.selection)
+        self.activated.connect(self.new_output)
         self.add_options()
+
+    def new_output(self):
+        i = self.currentIndex()-1
+        name = self.options[i]
+        self.par.new_output(OutputGroup(self.par, name))
+        self.setCurrentIndex(0)
 
     def selection(self):
         """
@@ -927,8 +1045,10 @@ class NewOutputWidget(QComboBox):
             self.addItem(icon, option)
 
 
-
 class OutputGroup(QWidget):
+    """
+    Base class for all the outputs
+    """
     def __init__(self, parent, name):
         QWidget.__init__(self, parent=parent)
         # Midi.__init__(self)
@@ -936,36 +1056,36 @@ class OutputGroup(QWidget):
         self.label = QLabel('Label: {}'.format(name))
         self.lay = QHBoxLayout(self)
         self.lay.addWidget(self.label)
+        self.initialize()
 
     def configure(self):
+        pass
+    
+    # @abstractmethod
+    def initialize(self, config):
         pass
 
     def send(self):
         pass
 
-class MidiOutput(OutputGroup):
-    def __init__(self, parent):
-        super(MidiOutput, self).__init__()
+# class MidiOutputWidget(OutputGroup, MidiOutput):
+#     def __init__(self, parent):
+#         super(MidiOutput, self).__init__()
 
-    def configure(self):
-        pass
+#     def configure(self):
+#         pass
 
-    def send(self):
-        pass
+#     def send(self):
+#         pass
         
 
-class LED(QLabel):
-    def __init__(self, parent):
-        super(LED, self).__init__()
+    
 
-
-
-class OutputView(QGroupBox, Midi):
+class OutputView(QWidget):
     def __init__(self, parent):
         super(OutputView, self).__init__(parent=parent)
-
+        self.midi = Midi()
         self.par = parent
-        self.setTitle('Outputs')
         self.lay = QVBoxLayout(self)
         self.lay.setSpacing(0)
         self.lay.setContentsMargins(0,0,0,0)
@@ -1003,6 +1123,15 @@ class OutputView(QGroupBox, Midi):
         self.label_map.pop(label)
         del lab
 
+    def trigger(self, label_index):
+        try:
+            print(self.labels)
+            # print(mido.get_output_names())
+            self.labels[label_index].trigger_outputs()
+            self.midi.send_midi(label_index)
+        except Exception as e:
+            print(e)
+
 
 class LabelRow(QWidget):
     def __init__(self, parent, name, n_samples=0):
@@ -1020,6 +1149,8 @@ class LabelRow(QWidget):
             status=['Show Outputs', 'Hide Outputs'],
             own_trigger=True)
         self.toggle.setFixedWidth(30)
+
+        self.led = LED(self)
 
         self.activate_btn = ToggleButton(
             parent=self, 
@@ -1039,7 +1170,9 @@ class LabelRow(QWidget):
         self.layout.addWidget(self.activate_btn)
         self.layout.addWidget(self.toggle)
         self.layout.addWidget(self.label)
-        self.layout.addWidget(self.count)
+        # self.layout.addWidget(self.count)
+        self.layout.addSpacing(10)
+        self.layout.addWidget(self.led)
         # self.layout.addWidget()
 
     def label_select(self):
@@ -1059,15 +1192,15 @@ class LabelGroup(QWidget):
         self.par = parent
         self.output_widget = output_widget
         self.name = name
-        self.led = None
         self.n_samples = n_samples
+        self.timer = QTimer()
 
         self.new_output_row = NewOutputWidget(self)
-        self.output_container = QGroupBox()
+        self.output_container = QWidget()
         self.output_layout = QVBoxLayout(self.output_container)
         self.output_layout.setSpacing(0)
-        self.output_layout.setContentsMargins(0,0,0,0)
-        self.outputs = ['Midi']
+        self.output_layout.setContentsMargins(30,0,0,0)
+        self.outputs = []
         self.output_objects = []
         self.output_map = {}
         self.output_container.setVisible(False)
@@ -1078,12 +1211,16 @@ class LabelGroup(QWidget):
         
         self.lay = QVBoxLayout(self)
         self.lay.addWidget(self.label_row)
+        self.lay.addSpacing(-10)
         self.lay.addWidget(self.output_container)
         self.lay.insertStretch(-1, 1)
 
-    def trigger_outputs(self, label):
+    def trigger_outputs(self):
         for output in self.outputs:
             output.send()
+        self.label_row.led.light()
+    
+
 
     @QtCore.Slot()
     def expand(self, state):
@@ -1095,11 +1232,217 @@ class LabelGroup(QWidget):
             self.output_objects.append(out)
             
             self.output_layout.addWidget(out)
+        self.output_layout.addSpacing(5)
         self.output_layout.addWidget(self.new_output_row)
-        self.output_layout.insertStretch(-1, 1)
-            
-    def select_label(self, label):
-        self.par.dataset_view.change_label(label)
-        self.output_widget.set_active(label)
-        
+        self.output_layout.addSpacing(10)
 
+    def new_output(self, obj):
+        self.output_objects.append(obj)
+        self.output_layout.addSpacing(-10)
+        self.output_layout.insertWidget(-2, obj)
+
+    def select_label(self, label):
+        self.par.change_label(label)
+        self.output_widget.set_active(label)
+
+
+
+
+class Led(QPushButton):
+    black = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
+    white = np.array([0xff, 0xff, 0xff], dtype=np.uint8)
+    blue = np.array([0x73, 0xce, 0xf4], dtype=np.uint8)
+    green = np.array([0xad, 0xff, 0x2f], dtype=np.uint8)
+    orange = np.array([0xff, 0xa5, 0x00], dtype=np.uint8)
+    purple = np.array([0xaf, 0x00, 0xff], dtype=np.uint8)
+    red = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
+    yellow = np.array([0xff, 0xff, 0x00], dtype=np.uint8)
+
+    capsule = 1
+    circle = 2
+    rectangle = 3
+
+    def __init__(self, parent, on_color=green, off_color=black,
+                 shape=circle, build='release'):
+        super().__init__()
+        if build == 'release':
+            self.setDisabled(True)
+        else:  # For example 'debug'
+            self.setEnabled(True)
+
+        self._qss = 'QPushButton {{ \
+                                   border: 1px solid lightgray; \
+                                   border-radius: {}px; \
+                                   background-color: \
+                                       QLinearGradient( \
+                                           y1: 0, y2: 1, \
+                                           stop: 0 white, \
+                                           stop: 0.2 #{}, \
+                                           stop: 0.8 #{}, \
+                                           stop: 1 #{} \
+                                       ); \
+                                 }}'
+        self._on_qss = ''
+        self._off_qss = ''
+
+        self._status = False
+        self._end_radius = 0
+
+        # Properties that will trigger changes on qss.
+        self.__on_color = None
+        self.__off_color = None
+        self.__shape = None
+        self.__height = 0
+
+        self._on_color = on_color
+        self._off_color = off_color
+        self._shape = shape
+        self._height = self.sizeHint().height()
+        self.setFixedSize(15, 15)
+        self.set_status(False)
+
+    # =================================================== Reimplemented Methods
+    def mousePressEvent(self, event):
+        QPushButton.mousePressEvent(self, event)
+        if self._status is False:
+            self.set_status(True)
+        else:
+            self.set_status(False)
+
+
+    def resizeEvent(self, event):
+        self._height = self.size().height()
+        QPushButton.resizeEvent(self, event)
+
+    def setFixedSize(self, width, height):
+        self._height = height
+        if self._shape == Led.circle:
+            QPushButton.setFixedSize(self, height, height)
+        else:
+            QPushButton.setFixedSize(self, width, height)
+
+    # ============================================================== Properties
+    @property
+    def _on_color(self):
+        return self.__on_color
+
+    @_on_color.setter
+    def _on_color(self, color):
+        self.__on_color = color
+        self._update_on_qss()
+
+    @_on_color.deleter
+    def _on_color(self):
+        del self.__on_color
+
+    @property
+    def _off_color(self):
+        return self.__off_color
+
+    @_off_color.setter
+    def _off_color(self, color):
+        self.__off_color = color
+        self._update_off_qss()
+
+    @_off_color.deleter
+    def _off_color(self):
+        del self.__off_color
+
+    @property
+    def _shape(self):
+        return self.__shape
+
+    @_shape.setter
+    def _shape(self, shape):
+        self.__shape = shape
+        self._update_end_radius()
+        self._update_on_qss()
+        self._update_off_qss()
+        self.set_status(self._status)
+
+    @_shape.deleter
+    def _shape(self):
+        del self.__shape
+
+    @property
+    def _height(self):
+        return self.__height
+
+    @_height.setter
+    def _height(self, height):
+        self.__height = height
+        self._update_end_radius()
+        self._update_on_qss()
+        self._update_off_qss()
+        self.set_status(self._status)
+
+    @_height.deleter
+    def _height(self):
+        del self.__height
+
+    # ================================================================= Methods
+    def _update_on_qss(self):
+        color, grad = self._get_gradient(self.__on_color)
+        self._on_qss = self._qss.format(self._end_radius, grad, color, color)
+
+    def _update_off_qss(self):
+        color, grad = self._get_gradient(self.__off_color)
+        self._off_qss = self._qss.format(self._end_radius, grad, color, color)
+
+    def _get_gradient(self, color):
+        grad = ((self.white - color) / 2).astype(np.uint8) + color
+        grad = '{:02X}{:02X}{:02X}'.format(grad[0], grad[1], grad[2])
+        color = '{:02X}{:02X}{:02X}'.format(color[0], color[1], color[2])
+        return color, grad
+
+    def _update_end_radius(self):
+        if self.__shape == Led.rectangle:
+            self._end_radius = int(self.__height / 10)
+        else:
+            self._end_radius = int(self.__height / 2)
+
+    def _toggle_on(self):
+        self.setStyleSheet(self._on_qss)
+
+    def _toggle_off(self):
+        self.setStyleSheet(self._off_qss)
+
+    def set_on_color(self, color):
+        self._on_color = color
+
+    def set_off_color(self, color):
+        self._off_color = color
+
+    def set_shape(self, shape):
+        self._shape = shape
+
+    def set_status(self, status):
+        self._status = True if status else False
+        if self._status is True:
+            self._toggle_on()
+        else:
+            self._toggle_off()
+
+    def turn_on(self, status=True):
+        self.set_status(status)
+
+    def turn_off(self, status=False):
+        self.set_status(status)
+
+    def is_on(self):
+        return True if self._status is True else False
+
+    def is_off(self):
+        return True if self._status is False else False
+
+
+class LED(Led):
+    def __init__(self, parent):
+        super(LED, self).__init__(parent)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.turn_off)
+        self.timer.setSingleShot(True)
+        
+    def light(self):
+        self.turn_on()
+        self.timer.start(10)

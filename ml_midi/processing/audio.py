@@ -10,17 +10,17 @@ from ml_midi.config import ConfigManager as config
 
 class AudioIO(object):
     def __init__(
-        self, 
-        channels=1, 
-        chunk_size=2048, 
+        self,
+        channels=2,
+        chunk_size=2048,
         sample_rate=44100, 
         device_index=1):
 
         self.format = pyaudio.paInt16
-        self.channels = channels
+        self.channels = 1
         self.sample_rate = sample_rate
         self.samples_per_chunk = chunk_size
-        self.device_index = device_index
+        self.device_index = 0
         self.volume = 10
         self.n_chunks = 32
 
@@ -33,8 +33,9 @@ class AudioIO(object):
         self.playing = False
         self.monitoring = False
         self.recording = False
+        self.classifying = False
 
-        self.instance = pyaudio.PyAudio() # create pyaudio instantiation
+        self.instance = pyaudio.PyAudio() 
         print(self.instance.get_sample_size(self.format))
         self.input = self.instance.open(
             format = self.format, 
@@ -44,13 +45,14 @@ class AudioIO(object):
             input = True,
             frames_per_buffer=self.samples_per_chunk)
 
-        self.output = self.instance.open(
-            format = self.format, 
-            rate = self.sample_rate,
-            output_device_index=0,
-            channels = self.channels,
-            output = True)
-        self.output.start_stream()
+        # self.output = self.instance.open(
+        #     format = self.format, 
+        #     rate = self.sample_rate,
+        #     output_device_index=,
+        #     channels = self.channels,
+        #     output = True)
+        self.output = None
+        # self.output.start_stream()
 
     def record(self, n_samples):
         """
@@ -86,8 +88,6 @@ class AudioIO(object):
             print('play')
             sample = self.main_widget.sample_widget.current_sample
             print(sample.wave)
-            # self.audio.playback(sample.wave)
-
         else:
             print('pause')
 
@@ -97,23 +97,19 @@ class AudioIO(object):
 
     def play_chunk(self):
         if self.playing:
-            # scaled = self.current_sample.wave * self.volume / 100
             scaled = self.chunks[self.current_chunk] * self.volume / 100
             scaled = scaled.astype(np.uint16)
             self.output.write(scaled)
             self.current_chunk += 1
             if self.current_chunk >= self.n_chunks - 1:
                 self.current_chunk = 0
-                # print(self.looping, self.playing_all)
                 if not self.looping:
                     self.playing = False
                     self.manage_buttons()
                 if self.playing_all:
                     self.get_next_sample()
-                    
             self.seek(self.current_chunk)
             
-                
     def new_sample(self, sample):
         """
         Update the sample globally?
@@ -137,15 +133,18 @@ class AudioIO(object):
         print('lab')
 
     def monitor(self):
-        # if status: print('Mon')
-        # else: print('Mon Stopped')
-            # def detect(self):
         data, _ = self.record(config.DETECTION_SAMPLE_SIZE)
         self.display_update(data, all=False)
         self.current_max = max(data)
-        if self.recording and self.current_max > config.THRESHOLD:
-            self.record_sample()
-            
+
+        if self.current_max > config.THRESHOLD:
+            if not self.classifying and self.recording:
+                self.record_sample()
+            elif self.classifying and not self.recording:
+                self.classify()
+                print('classifying in audio.py')
+            else:
+                self.make_sample()
 
     def close(self):
         self.input.stop_stream()
@@ -162,6 +161,9 @@ class AudioIO(object):
         pass
 
     def manage_buttons(self):
+        pass
+
+    def classify(self):
         pass
 
 

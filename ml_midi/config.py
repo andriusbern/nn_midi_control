@@ -36,22 +36,22 @@ class ConfigManager():
     ############
     # Audio
     SAMPLE_RATE = 44100
-    RECORDING_LENGTH = 4096 # 16384 #8192 # 2048 # 4096
+    RECORDING_LENGTH = 1024 # 16384 #8192 # 2048 # 4096
     THRESHOLD = 5000
     DETECTION_SAMPLE_SIZE = 128
 
     # Spectrograms
     SPECTROGRAM_LOW  = 20
     SPECTROGRAM_HIGH = 20000
-    FREQUENCY_BANDS  = 100
-    TIMESTEPS = 100
-    FFT_LENGTH = 1024
+    FREQUENCY_BANDS  = 30
+    TIMESTEPS = 30
+    FFT_LENGTH = 256
     NORMALIZE = False
 
 
     audio_config = dict(
         channels=2,
-        device_index=0,
+        device_index=1,
         chunk_size=128,
         sample_rate=SAMPLE_RATE)
 
@@ -105,8 +105,6 @@ class ConfigManager():
 
         return translate[parameter]
 
-
-
 audio_config = dict(
     channels=1,
     device_index=0,
@@ -114,64 +112,21 @@ audio_config = dict(
     sample_rate=SAMPLE_RATE)
 
 net_config = dict(
+    dataset='piezo',
     filters=[16, 32, 64],
-    kernel_size=[3, 3, 3],
-    strides=[1, 1, 1],
-    fc_layers=[128, 64, 32],
-    epochs=10)
+    kernel_size=[5, 5, 5],
+    strides=[1, 2, 2, 1],
+    fc_layers=[256, 128, 32],
+    batch_size=100,
+    epochs=250,
+    lr=0.001
+    )
 
-interface_config = dict(
-    total_length = RECORDING_LENGTH,
-    display_sample_size = 128,
-    scale_fft=True,
-    log_scale_fft=True)
+mlp_config = dict(
+    dataset='piezo',
+    fc_layers=[512, 256, 128, 32],
+    batch_size=100,
+    epochs=250,
+    lr=0.001
+    )
 
-spectrogram_config = dict(
-    nperseg=FFT_LENGTH)
-
-melspectrogram = dict(
-    n_fft=FFT_LENGTH,
-    sr=SAMPLE_RATE,
-    power=1.0)
-
-mod_config = dict(
-    SAMPLE_RATE = SAMPLE_RATE,
-    RECORDING_LENGTH = RECORDING_LENGTH, # 16384 #8192 # 2048 # 4096
-    SPECTROGRAM_LOW  = SPECTROGRAM_LOW,
-    SPECTROGRAM_HIGH = SPECTROGRAM_HIGH,
-    FREQUENCY_BANDS  = FREQUENCY_BANDS,
-    TIMESTEPS = TIMESTEPS,
-    FFT_LENGTH = FFT_LENGTH,
-    THRESHOLD = THRESHOLD, 
-    NORMALIZE = NORMALIZE,
-    DETECTION_SAMPLE_SIZE = DETECTION_SAMPLE_SIZE
-)
-
-recording_config = dict(
-    SAMPLE_RATE = SAMPLE_RATE,
-    RECORDING_LENGTH = RECORDING_LENGTH, # 16384 #8192 # 2048 # 4096
-    THRESHOLD = THRESHOLD, 
-    DETECTION_SAMPLE_SIZE = DETECTION_SAMPLE_SIZE
-)
-
-spec_config = dict(
-    SPECTROGRAM_LOW  = SPECTROGRAM_LOW,
-    SPECTROGRAM_HIGH = SPECTROGRAM_HIGH,
-    FREQUENCY_BANDS  = FREQUENCY_BANDS,
-    TIMESTEPS = TIMESTEPS,
-    FFT_LENGTH = FFT_LENGTH,
-    NORMALIZE = NORMALIZE,
-)
-
-mappings = dict(
-    SPECTROGRAM_LOW  = SPECTROGRAM_LOW,
-    SPECTROGRAM_HIGH = SPECTROGRAM_HIGH,
-    FREQUENCY_BANDS  = FREQUENCY_BANDS,
-    TIMESTEPS = TIMESTEPS,
-    FFT_LENGTH = FFT_LENGTH,
-    NORMALIZE = NORMALIZE,
-    SAMPLE_RATE = SAMPLE_RATE,
-    RECORDING_LENGTH = RECORDING_LENGTH, # 16384 #8192 # 2048 # 4096
-    THRESHOLD = THRESHOLD, 
-    DETECTION_SAMPLE_SIZE = DETECTION_SAMPLE_SIZE
-)

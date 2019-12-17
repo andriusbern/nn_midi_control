@@ -3,10 +3,27 @@ import time, datetime, os, sys
 import cv2, scipy, wave
 from PIL import Image
 import ml_midi.processing.process as ap
-import glob
+import glob,random,copy
+import matplotlib.pyplot as plt
 
 from ml_midi.config import ConfigManager as config
 
+
+def split_data(data, labels, ratio=0.25):
+    assert(len(data)==len(labels))
+    n = len(data)
+    n_labels = len(np.unique(labels))
+
+    test_ids = random.sample(range(n), int((n-1)*ratio))
+    train_ids = list(set(range(n)).difference(test_ids))
+
+    train_data = data[np.array(train_ids),:,:]
+    test_data = data[np.array(test_ids),:,:]
+    train_labels = labels[np.array(train_ids)]
+    test_labels = labels[np.array(test_ids)]
+
+    return train_data, test_data, train_labels, test_labels
+    
 class DataSample(object):
     def __init__(self, filename=None, wave=None, raw=None, label=None):
         # assert(filename is not None or wave is not None, 
@@ -23,8 +40,9 @@ class DataSample(object):
         self.spectrogram = None
         # self.spectrogram = self.create_spectrogram()
 
-    def create_spectrogram(self):
-        spec = self.spectrogram = ap.melspectrogram(self.wave)
+    def create_spectrogram(self, length=1):
+        l = int(len(self.wave)*length)
+        spec = self.spectrogram = ap.melspectrogram(self.wave[:l])
         return spec
 
     def from_wave(self, wave, label, dataset):
@@ -50,26 +68,68 @@ class Output(object):
         pass
 
 class ImageDataset(object):
-    def __init__(self):
+    def __init__(self, name):
         self.name = name
         self.IO = DataIO()
         self.image_dir = os.path.join(config.DATA, 'images',name)
         self.audio_dir = os.path.join(config.DATA, 'audio', name)
+        self.load_existing()
 
     def load_existing(self):
         
         subdirs = [x[0] for x in os.walk(self.image_dir)][1:]
         self.current_label = 'default'
-        self.hashmap, self.samples_per_label = {}, {}
         self.labels = [x.split('/')[-1] for x in subdirs]
+        labels = []
+        self.label_mapping, self.reverse_mapping = {}, {}
+        images = []
         print(self.labels)
-
         for i, subdir in enumerate(subdirs):
+            print(subdir)
             print(self.labels[i])
-            waves = self.IO.read_image_directory(subdir)
-            for wave in waves:
-                sample = self.new_sample(wave=wave, label=self.labels[i])
-        self.labels.sort()
+            folder = self.IO.read_image_directory(subdir, 'png')
+            images += [folder]
+            labels += [np.repeat(i, len(folder))]
+            self.label_mapping[self.labels[i]] = i
+            self.reverse_mapping[i] = self.labels[i]
+        self.samples = np.concatenate(images, axis=0)
+        self.data_labels = np.concatenate(labels, axis=0)
+
+        self.train_x, self.test_x, self.train_y, self.test_y = split_data(self.samples, self.data_labels)
+        # self.labels.sort()
+
+    def get_batch(self, size):
+        ids = random.sample(range(self.train_x.shape[0]), size)
+        data = self.train_x[np.array(ids), :, :] / 255.
+        labels = self.train_y[np.array(ids)]
+        one_hot = np.zeros([size, len(self.labels)])
+        one_hot[np.arange(size), labels] = 1
+        print(one_hot.shape)
+
+        return data, one_hot
+
+    def show(self, n):
+        changes = np.insert(np.where(self.data_labels[:-1] != self.data_labels[1:])[0], 0, 0)
+
+        rows = []
+        for i, label in enumerate(self.labels):
+            row = np.hstack(self.samples[changes[i]+1:changes[i]+n+1])
+            rows.append(row)
+
+        image = np.vstack(rows) * 2
+        print(image.max(), image.min())
+        plt.imshow(image, cmap='seismic')
+        plt.show()
+        return rows
+
+    def get_sample(self, sample_no):
+        """
+        Get the sample from the dataset hashmap
+        """
+        try:
+            return self.hashmap[self.current_label][sample_no]
+        except Exception as e:
+            print(e)
 
 class Dataset(object):
     """
@@ -95,14 +155,14 @@ class Dataset(object):
 
     def create_new(self, name):
         self.name = name
-        self.labels, self.samples = ['default'], []
+        self.labels, self.samples = [], []
         self.hashmap, self.samples_per_label = {}, {}
 
         self.image_dir = os.path.join(config.IMAGES, name)
         self.audio_dir = os.path.join(config.AUDIO, name)
 
-        self.current_label = 'default'
-        os.makedirs(os.path.join(self.audio_dir, 'default'))
+        self.current_label = ''
+        # os.makedirs(os.path.join(self.audio_dir, 'default'))
 
         self.current_sample_id = 0
 
@@ -174,34 +234,27 @@ class Dataset(object):
         self.labels.sort()
 
 
-    def write_image_dataset(self):
+
+
+    def write_image_dataset(self, length=1):
         """
         Writes an image dataset of current samples,
         Using the current config
         """
         # Save the conf file somehow
-        # for label in self.labels:
-        #     directory = os.path.join(self.image_dir, label)
-        #     if not os.path.isdir(directory):
-        #         os.makedirs(directory)
+        for label in self.hashmap.keys():
+            directory = os.path.join(self.image_dir, label)
+            if not os.path.isdir(directory):
+                os.makedirs(directory)
         for label in self.hashmap.keys():
             directory = os.path.join(self.image_dir, label)
             print(directory)
             for sample in self.hashmap[label]:
                 print(sample.id)
                 path = os.path.join(directory, str(sample.id)+'.png')
-                image = sample.create_spectrogram()
+                image = sample.create_spectrogram(length=length)
                 self.IO.write_grayscale(path=path, image=image)
 
-        # for sample in self.samples:
-
-        #     samples_folder = os.path.join(dataset_folder, sample.label)
-        #     if not os.path.isdir(samples_folder):
-        #         os.makedirs(samples_folder)
-
-        #     path = os.path.join(samples_folder, sample.id+'.png')
-        #     image = sample.create_spectrogram()
-        #     self.IO.write_grayscale(path=path, image=image)
 
     def split_data(self):
         """
@@ -287,15 +340,19 @@ class DataIO(object):
         return waves
 
     def read_image_directory(self, dir_path, ext):
-        files = glob.glob(dir_path+'*.{}'.format(ext))
+        files = glob.glob(dir_path+'/*.{}'.format(ext))
+        print(files)
         images = []
         for f in files:
+            print(f)
             filepath = os.path.join(dir_path, f)
             images.append(self.read_image(path=filepath))
+        images = np.stack(images, axis=0)
         return images
 
     def read_image(self, path,):
         image = Image.open(path)
+        image = np.flip(np.asarray(image), axis=0)
         return image
 
     def write_grayscale(self, path, image):

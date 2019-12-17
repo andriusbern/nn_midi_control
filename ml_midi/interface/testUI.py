@@ -3,10 +3,6 @@ import sys, random, os, time
 import numpy as np
 from ml_midi.interface import ParameterSpinBox, ParameterGroup, MainWidget
 from ml_midi.processing import AudioIO, Dataset, DataSample, Midi
-# from ml_midi.learning import RetardedClassifier
-# from .dataset import DatasetView
-# from .record import RecordView
-# from .imagedata import ModelView
 
 import qtmodern.styles
 import qtmodern.windows
@@ -42,13 +38,9 @@ class Window(QtWidgets.QMainWindow):
 
         self.status_bar = self.statusBar()
         sa = SettingsAction(parent=self)
-        # ma = MidiAction(parent=self)
-        # self.ps = PlaySampleAction(parent=self)
-        # self.nl = NewLabelAction(parent=self)
         
         menu = self.menuBar()
         file = menu.addMenu('&File')
-        # actions = [ma, sa, self.ps, self.nl, exit_action]
         actions = [sa, exit_action]
         file.addActions(actions)
         
@@ -58,7 +50,6 @@ class Window(QtWidgets.QMainWindow):
         toolbar = self.addToolBar('Exit')
         toolbar.addActions(actions)
 
-        
         # main = ActionComboBox(parent=self, actions=actions[1:])
         # main = QtInterface(parent=self)
         
@@ -112,7 +103,7 @@ class Window(QtWidgets.QMainWindow):
 class App(QtWidgets.QApplication):
     def __init__(self, *args):
         QtWidgets.QApplication.__init__(self, *args)
-        qtmodern.styles.dark(self)
+        # qtmodern.styles.dark(self)
         # self.setFont(QFont('', 8))
         self.window = Window()
         # self.connect(self, SIGNAL("lastWindowClosed()"), self.byebye )

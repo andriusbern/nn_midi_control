@@ -56,7 +56,7 @@ def melspectrogram(wave, normalize=False):
     print(mel.max())
     decibels = librosa.power_to_db(mel)
     print(decibels.max())
-    decibels = np.clip(decibels, 0, 120)
+    decibels = np.clip(decibels, 10, 120) * 2
     # decibels = decibels/120 * decibels.max()
     # if normalize: decibels = scale(decibels)
     # decibels = scale(decibels)

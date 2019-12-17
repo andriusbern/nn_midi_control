@@ -3,8 +3,8 @@ import numpy as np
 
 class Midi(object):
     def __init__(self):
-        self.outputs = mido.get_output_names()
-        self.port = mido.open_output(self.outputs[0])
+        self.outs = mido.get_output_names()
+        self.port = mido.open_output(self.outs[1])
         self.mapping = self.load_mapping(None)
         self.channel = 1
 
@@ -29,7 +29,6 @@ class Midi(object):
             self.port.send(off)
 
     def create_message(self, type, b1, b2=64):
-
         message = mido.Message(
             type, 
             note=b1,
@@ -39,7 +38,6 @@ class Midi(object):
 
 class MidiMessage(mido.Message):
     def __init__(self, msg_type, byte1, byte2, port):
-        # mido.Message()
 
         types = ['note_off', 'note_on', 'control_change', 'program_change']
         self.type = msg_type

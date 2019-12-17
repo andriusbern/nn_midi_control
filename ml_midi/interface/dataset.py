@@ -3,7 +3,6 @@ import sys, random, os, time, shutil
 import numpy as np
 from ml_midi.processing import Dataset
 import ml_midi.config as config
-# from QLed import QLed
 
 
 class DatasetView(QtWidgets.QWidget):
