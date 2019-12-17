@@ -1,4 +1,5 @@
 ml_midi/data
+ml_midi/models
 
 .vscode/
 env/
